@@ -1,0 +1,216 @@
+---
+title: "Big Query Lecture 1 HW"
+author: Shayah LaCour
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
+
+# BigQuery SQL Lecture 1
+
+## Query 1
+
+```` sql
+SELECT event_date, event_name
+FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*`
+LIMIT 20;
+```
+````
+
+This query pulls a small sample (20 rows) showing:
+
+-   `event_date`: the date the event happened
+
+-   `event_name`: the type of event recorded
+
+    The purpose is to quickly preview what the event data looks like.
+
+![](images/clipboard-3934926834.png)
+
+## Query 2
+
+```` sql
+SELECT event_date, event_name, user_pseudo_id
+FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*`
+WHERE event_name = 'purchase' LIMIT 50;
+```
+````
+
+This query filters the dataset to only include rows where:
+
+-   `event_name = 'purchase'`
+
+It returns up to 50 purchase events and includes:
+
+-   `user_pseudo_id`: an anonymous user identifier
+
+This helps confirm purchase events exist and shows which users generated them.
+
+![](images/clipboard-1033019159.png)
+
+## Query 3
+
+```` sql
+SELECT event_date, event_timestamp, event_name
+FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*`
+WHERE event_name = 'purchase'
+ORDER BY event_timestamp DESC
+LIMIT 20;
+```
+````
+
+This query:
+
+-   filters to purchase events only
+
+-   sorts them from newest to oldest using `ORDER BY event_timestamp DESC`
+
+-   returns the 20 most recent purchase rows
+
+This is useful when you want the latest activity first.
+
+![](images/clipboard-2765764864.png)
+
+## Query 4
+
+```` sql
+SELECT COUNT(*) AS event_count
+FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*`
+WHERE _TABLE_SUFFIX BETWEEN '20201201' AND '20201231';
+```
+````
+
+This query counts how many total event rows exist in the dataset for:
+
+-   December 1, 2020 through December 31, 2020
+
+It uses `_TABLE_SUFFIX` to restrict which daily tables are included.
+
+![](images/clipboard-1373606791.png)
+
+## Query 5
+
+```` sql
+SELECT COUNT(*) AS purchase_events
+FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*`
+WHERE event_name = 'purchase'
+    AND _TABLE_SUFFIX BETWEEN '20201201' AND '20201231';
+    ```
+````
+
+This query counts only purchase events in December 2020 by:
+
+-   filtering `event_name = 'purchase'`
+
+-   restricting tables to Dec 1–Dec 31 using `_TABLE_SUFFIX`
+
+    This gives the total number of purchase rows during that month.
+
+![](images/clipboard-2289442582.png)
+
+## Query 6
+
+```` sql
+SELECT event_date, COUNT(*) AS events
+FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*`
+WHERE _TABLE_SUFFIX BETWEEN '20201201' AND '20201231'
+GROUP BY event_date
+ORDER BY event_date;
+```
+````
+
+This query summarizes events by day in December 2020:
+
+-   `GROUP BY event_date` creates one row per date
+
+-   `COUNT(*)` counts the number of event rows for each date
+
+-   `ORDER BY event_date` sorts from earliest to latest
+
+This is a basic time-series count of all activity.
+
+![](images/clipboard-2352918921.png)
+
+## Query 7
+
+``` sql
+SELECT event_name, COUNT(*) AS events
+FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*`
+WHERE _TABLE_SUFFIX BETWEEN '20201201' AND '20201231'
+GROUP BY event_name
+ORDER BY events DESC
+LIMIT 15;
+```
+
+This query finds the most frequent event types in December 2020:
+
+-   groups by `event_name`
+
+-   counts how many rows each event type has
+
+-   sorts from most common to least common
+
+-   limits to the top 15
+
+    This is useful for understanding the main behaviors being tracked.
+
+![](images/clipboard-33870515.png)
+
+## Query 8
+
+```` sql
+SELECT event_name, COUNT(*) AS events
+FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*`
+WHERE _TABLE_SUFFIX BETWEEN '20201201' AND '20201231'
+GROUP BY event_name
+HAVING COUNT(*) >= 50000
+ORDER BY events DESC;
+```
+````
+
+This query is like Query 7, but instead of taking the top 15, it:
+
+-   keeps only event types with **50,000 or more** rows using `HAVING COUNT(*) >= 50000`
+
+![](images/clipboard-3678710295.png)
+
+## Query 9
+
+```` sql
+SELECT event_date, COUNT(*) AS events
+FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*`
+WHERE _TABLE_SUFFIX BETWEEN '20201201' AND '20201207'
+GROUP BY event_date
+ORDER BY event_date;
+```
+````
+
+This query is the same idea as Query 6, but only for the first week of December:
+
+-   Dec 1, 2020 through Dec 7, 2020
+
+-   one row per day with the total event count
+
+This is useful when you want a smaller time window to explore trends quickly.
+
+![](images/clipboard-603155509.png)

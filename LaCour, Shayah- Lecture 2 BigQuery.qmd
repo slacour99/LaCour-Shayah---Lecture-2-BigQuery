@@ -1,0 +1,146 @@
+---
+title: "LaCour, Shayah - Lecture 2 BigQuery"
+author: "Shayah LaCour"
+format:
+  html:
+    toc: true
+    code-fold: true
+    self-contained: true
+editor: visual
+---
+
+# Lecture 2 — Intermediate/Advanced BigQuery for GA4
+
+## Query 1
+
+``` sql
+WITH UserInfo AS (
+SELECT
+user_pseudo_id,
+MAX(IF(event_name IN ('first_visit', 'first_open'), 1, 0)) AS is_new_user
+FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*`
+WHERE _TABLE_SUFFIX BETWEEN '20201101' AND '20201130'
+GROUP BY user_pseudo_id
+)
+SELECT
+COUNT(*) AS total_users,
+SUM(is_new_user) AS new_users
+FROM UserInfo;
+```
+
+![What does this mean? In November 2020, 79,421 total users were recorded, of which 71,734 (approximately 90%) were classified as new users based on first_visit or first_open events](images/clipboard-1423198203.png)
+
+## Query 2
+
+``` sql
+SELECT
+TIMESTAMP_MICROS(event_timestamp) AS event_time,
+(
+SELECT value.string_value
+FROM UNNEST(event_params)
+WHERE key = 'page_location' LIMIT 1
+) AS page_location
+FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*`
+WHERE event_name = 'page_view'
+AND _TABLE_SUFFIX BETWEEN '20201201' AND '20201202'
+LIMIT 50;
+```
+
+![](images/clipboard-4093540352.png)
+
+This is showing the exact timestamp of a page view, the URL of the page viewed, only for Dec 1-2, 2020, and only 50 rows
+
+## Query 3
+
+``` sql
+SELECT
+event_date,
+item.item_name,
+COUNT(*) AS item_rows
+FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*` e,
+UNNEST(e.items) AS item
+WHERE e.event_name = 'purchase'
+AND _TABLE_SUFFIX BETWEEN '20201201' AND '20201231'
+GROUP BY event_date, item.item_name
+ORDER BY item_rows DESC
+LIMIT 20;
+```
+
+![This query is demonstrating which product items show up most often inside purchase events by day in December 2020](images/clipboard-111273564.png)
+
+## Query 4
+
+``` sql
+SELECT
+event_date,
+STRING_AGG(DISTINCT event_name, ', ' ORDER BY event_name) AS events_seen
+FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*`
+WHERE _TABLE_SUFFIX BETWEEN '20201201' AND '20201203'
+GROUP BY event_date
+ORDER BY event_date;
+```
+
+![This is showing distinct event types that occured each day between 2020-12-01 and 2020-12-03](images/clipboard-1357362231.png)
+
+## Query 5
+
+``` sql
+WITH daily_event_counts AS (
+SELECT
+event_date,
+event_name,
+COUNT(*) AS events
+FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*`
+WHERE _TABLE_SUFFIX BETWEEN '20201201' AND '20201207'
+GROUP BY event_date, event_name
+)
+SELECT
+event_date,
+event_name,
+events,
+RANK() OVER (PARTITION BY event_date ORDER BY events DESC) AS rnk
+FROM daily_event_counts
+QUALIFY rnk <= 3 
+ORDER BY event_date, rnk;
+```
+
+![From this query we are answering, for each day from Dec 1-7, 2020, what are the top 3 most common event types (and how many times did each happen)?](images/clipboard-3963159225.png)
+
+## Query 6
+
+``` sql
+WITH daily_purchases AS (
+SELECT
+PARSE_DATE('%Y%m%d', event_date) AS dt,
+COUNT(*) AS purchases
+FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*`
+WHERE event_name = 'purchase'
+AND _TABLE_SUFFIX BETWEEN '20201201' AND '20201231' GROUP BY dt
+)
+SELECT
+dt,
+purchases,
+AVG(purchases) OVER (
+ORDER BY dt
+ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+) AS purchases_7d_avg
+FROM daily_purchases
+ORDER BY dt;
+```
+
+![With this query we are looking at it calculating daily purchase counts from Dec 2020 and then adding a 7-day moving average to smooth the trend](images/clipboard-3608074344.png)
+
+## Query 7
+
+``` sql
+SELECT
+event_name,
+APPROX_COUNT_DISTINCT(user_pseudo_id) AS approx_users
+FROM `bigquery-public-data.ga4_obfuscated_sample_ecommerce.events_*`
+WHERE _TABLE_SUFFIX BETWEEN '20201201' AND '20201231'
+GROUP BY event_name
+ORDER BY approx_users DESC
+LIMIT 15;
+```
+
+![With this last query we can see this query ranks event types by the number of distinct users who triggered them in Dec 2020, providing insight into which user behaviors had the broadest reach](images/clipboard-328244724.png)
