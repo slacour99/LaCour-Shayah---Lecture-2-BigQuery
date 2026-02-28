@@ -6,6 +6,7 @@ format:
     toc: true
     code-fold: true
     self-contained: true
+    output-file: index.html
 editor: visual
 ---
 
